@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuizMaster - AI Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/phosphor-icons"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        }
+        .quiz-container {
+            max-width: 600px;
+            margin: auto;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 24px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .btn { transition: all 0.2s ease-in-out; border-radius: 12px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.75rem 1.5rem; font-size: 1rem; border: none; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15); }
+        .btn-primary { background: linear-gradient(45deg, #6d28d9, #9f7aea); color: white; }
+        .btn-secondary { background-color: #e2e8f0; color: #4a5568; }
+        .option { border-radius: 12px; transition: all 0.2s ease-in-out; font-size: 1rem; padding: 1rem; background-color: #fff; border: 2px solid #e2e8f0; }
+        .option:hover:not(:disabled) { transform: translateX(4px); background-color: #f7fafc; border-color: #9f7aea; }
+        .correct { background-color: #c6f6d5 !important; border-color: #38a169 !important; color: #2f855a; font-weight: 600; }
+        .incorrect { background-color: #fed7d7 !important; border-color: #e53e3e !important; color: #c53030; font-weight: 600; }
+        .hidden { display: none; }
+        .spinner { border: 4px solid rgba(0, 0, 0, 0.1); width: 40px; height: 40px; border-radius: 50%; border-left-color: #6d28d9; animation: spin 1s ease infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes tada { from { transform: scale3d(1, 1, 1); } 10%, 20% { transform: scale3d(0.9, 0.9, 0.9) rotate3d(0, 0, 1, -3deg); } 30%, 50%, 70%, 90% { transform: scale3d(1.1, 1.1, 1.1) rotate3d(0, 0, 1, 3deg); } 40%, 60%, 80% { transform: scale3d(1.1, 1.1, 1.1) rotate3d(0, 0, 1, -3deg); } to { transform: scale3d(1, 1, 1); } }
+        .tada-animation { animation: tada 1s; }
+        .level-btn.locked { background-color: #e5e7eb; cursor: not-allowed; color: #9ca3af; }
+        .level-btn.locked .level-topic { display: none; }
+        .ad-container {
+            min-height: 100px;
+            background-color: #e2e8f0;
+            border: 2px dashed #cbd5e0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #718096;
+            font-weight: 500;
+            margin-top: 1.5rem;
+            border-radius: 12px;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <div class="quiz-container">
+        <!-- Header -->
+        <div class="p-6 bg-white/50 border-b border-gray-200 flex justify-between items-center">
+            <button id="back-btn-quiz" class="btn btn-secondary p-2 hidden"><i class="ph-arrow-left"></i> Back</button>
+            <h1 class="text-2xl sm:text-3xl font-extrabold text-gray-800 mx-auto text-center" id="header-title">QuizMaster</h1>
+            <div id="header-icons" class="flex items-center gap-2">
+                <button id="achievements-btn" class="btn btn-secondary p-2"><i class="ph-trophy"></i></button>
+                <div class="bg-yellow-300 text-yellow-800 text-sm font-bold px-3 py-1.5 rounded-full flex items-center gap-1">
+                    <i class="ph-star-fill"></i> <span id="total-points-value">0</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="p-6 sm:p-8">
+            <!-- Loading -->
+            <div id="loading" class="hidden text-center py-10"><div class="spinner mx-auto mb-4"></div><p id="loading-text" class="text-lg font-semibold text-gray-700"></p></div>
+
+            <!-- Home Screen -->
+            <div id="home-screen">
+                <p class="text-center text-gray-600 mb-6">Complete levels to unlock more. How high can you go?</p>
+                <div id="level-selection" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3"></div>
+                <!-- AdsTerra Ad Container - Home -->
+                <div id="ad-container-home" class="ad-container">
+                    <!-- Paste your AdsTerra ad code here -->
+                    Ad Space
+                </div>
+            </div>
+
+            <!-- Quiz Interface -->
+            <div id="quiz-interface" class="hidden">
+                <div class="flex justify-between items-center mb-6">
+                    <div id="streak-display" class="bg-orange-100 text-orange-800 text-md font-bold px-3 py-1.5 rounded-full hidden">🔥 <span id="streak-value"></span>x Streak!</div>
+                    <div id="score-counter" class="text-lg font-bold text-purple-700">Points: 0</div>
+                </div>
+                <div id="question-container" class="mb-6"><p id="question-text" class="text-xl sm:text-2xl font-bold text-gray-900 mb-6"></p><div id="options-container" class="space-y-3"></div></div>
+                <div id="explanation-container" class="hidden mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200"><h3 class="font-bold text-blue-800 mb-1">Explanation</h3><p id="explanation-text" class="text-base"></p></div>
+                <div class="flex justify-between items-center mt-8">
+                    <div>
+                        <button id="hint-btn" class="btn btn-secondary font-semibold"><i class="ph-magic-wand"></i>Hint</button>
+                    </div>
+                    <div>
+                        <button id="explain-btn" class="btn btn-secondary font-semibold hidden"><i class="ph-lightbulb"></i>Explain</button>
+                        <button id="next-btn" class="btn btn-primary font-semibold hidden">Next <i class="ph-arrow-right"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Score Screen -->
+            <div id="score-screen" class="hidden text-center">
+                <h2 id="score-title" class="text-3xl sm:text-4xl font-bold mb-2 text-gray-900"></h2>
+                <div id="score-feedback-container" class="min-h-[4rem] flex items-center justify-center mb-6">
+                    <p id="score-feedback" class="text-lg text-gray-600"></p>
+                </div>
+                <div class="bg-gray-100 p-4 rounded-lg mb-8 text-left space-y-2 text-base">
+                    <div class="flex justify-between items-center text-green-700"><span><i class="ph-check-circle text-green-500"></i> Correct Answers:</span> <strong id="base-score" class="text-lg"></strong></div>
+                    <div class="flex justify-between items-center text-orange-700"><span><i class="ph-fire-simple-fill text-orange-500"></i> Streak Bonus:</span> <strong id="bonus-points" class="text-lg"></strong></div>
+                    <hr class="my-1 border-gray-300">
+                    <div class="flex justify-between items-center text-purple-800 font-bold"><span><i class="ph-star-fill text-purple-600"></i> Total This Round:</span> <strong id="round-total" class="text-xl"></strong></div>
+                </div>
+                 <!-- AdsTerra Ad Container - Score -->
+                <div id="ad-container-score" class="ad-container mb-6">
+                    <!-- Paste your AdsTerra ad code here -->
+                    Ad Space
+                </div>
+                <div class="flex gap-4 justify-center">
+                    <button id="home-btn-score" class="btn btn-secondary text-lg"><i class="ph-house"></i> Home</button>
+                    <button id="play-again-btn" class="btn btn-primary text-lg"></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="modal-container" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+        <div id="achievements-modal" class="bg-white rounded-2xl shadow-xl max-w-md w-full hidden">
+            <div class="p-6 border-b flex justify-between items-center"><h3 class="text-2xl font-bold text-gray-800">🏆 Achievements</h3><button class="modal-close-btn text-gray-500 hover:text-gray-800"><i class="ph-x text-2xl"></i></button></div>
+            <div id="achievements-list" class="p-6 grid grid-cols-2 sm:grid-cols-3 gap-4"></div>
+        </div>
+        <div id="custom-alert" class="bg-white rounded-2xl shadow-xl p-8 max-w-sm w-full text-center hidden">
+            <div id="new-achievement-alert" class="hidden mb-4"><div class="text-6xl tada-animation"></div><h3 class="text-2xl font-bold text-yellow-500">Achievement Unlocked!</h3></div>
+            <p id="alert-message" class="text-lg text-gray-800 mb-6"></p>
+            <button id="alert-close-btn" class="btn btn-primary w-full">OK</button>
+        </div>
+    </div>
+
+    <script>
+        // --- DATA & CONFIG ---
+        const levelTopics = [
+            "Colors & Shapes", "Common Animals", "Basic Counting", "Fruits & Vegetables", "Everyday Objects", "The Alphabet", "Days of the Week", "Months of the Year", "The Four Seasons", "Body Parts", // 1-10
+            "World Capitals (Easy)", "Famous Landmarks", "The Solar System", "Dinosaurs", "Common Occupations", "Popular Disney Movies", "Types of Sports", "Musical Instruments", "Weather Types", "Insects", // 11-20
+            "Ancient Egypt", "The Roman Empire", "World War I", "Famous Inventors", "Human Anatomy", "The Periodic Table (Basics)", "Classic Literature (Authors)", "Greek Mythology", "World Oceans & Continents", "Types of Rocks", // 21-30
+            "The Renaissance", "The American Revolution", "World Currencies", "Computer Basics", "Famous Artists", "Photosynthesis", "Electricity & Circuits", "Shakespeare's Plays", "World Religions (Basics)", "Architectural Styles", // 31-40
+            "Medieval History", "The Cold War", "Economic Principles", "Data Structures & Algorithms", "The Human Brain", "Plate Tectonics", "Famous Philosophers", "Classical Music Composers", "Impressionist Art", "The Industrial Revolution", // 41-50
+            "The Byzantine Empire", "Astrophysics (Concepts)", "Organic Chemistry (Basics)", "World War II Battles", "Genetics & DNA", "Psychological Theories", "International Law", "Film Noir History", "Modernist Literature", "Cellular Biology", // 51-60
+            "Feudal Japan", "Quantum Mechanics (Concepts)", "Art Deco Movement", "Neuroscience", "Ancient Civilizations (Mesopotamia)", "Literary-Critical Theory", "Geopolitical Strategy", "Advanced Macroeconomics", "The French Revolution", "Calculus Concepts", // 61-70
+            "The Ottoman Empire", "String Theory (Conceptual)", "Post-Modern Philosophy", "Biochemistry", "Cryptography", "The History of Computing", "Surrealist Art History", "The Enlightenment", "Colonialism in Africa", "Abstract Algebra", // 71-80
+            "The Thirty Years' War", "Particle Physics", "Existentialist Thinkers", "Advanced Organic Synthesis", "Artificial Intelligence Ethics", "Behavioral Economics", "The Russian Revolution", "Bioinformatics", "The History of Medicine", "Ancient Greek Philosophy", // 81-90
+            "The Napoleonic Wars", "Quantum Field Theory", "The Frankfurt School", "Genomic Sequencing", "Theoretical Physics (Advanced)", "The Silk Road History", "Metaphysics", "Advanced International Relations", "The Protestant Reformation", "History of Mathematics" // 91-100
+        ];
+        const achievements = {
+            LEVEL_10: { title: "Getting Started", icon: "🚀", desc: "Reach Level 10", unlocked: false, check: (s) => s.highestLevelUnlocked >= 10 },
+            LEVEL_25: { title: "Quiz Adept", icon: "🧠", desc: "Reach Level 25", unlocked: false, check: (s) => s.highestLevelUnlocked >= 25 },
+            PERFECT_QUIZ: { title: "Perfectionist", icon: "🎯", desc: "Get a perfect score on a quiz", unlocked: false, check: (s, passed) => passed && (s.score - s.roundBonus) === s.questions.length * 10 },
+            STREAK_5: { title: "On Fire!", icon: "🔥", desc: "Achieve a 5x streak", unlocked: false, check: (s) => s.maxStreak >= 5 },
+            POINTS_1000: { title: "Point Collector", icon: "💰", desc: "Earn 1,000 total points", unlocked: false, check: (s) => s.totalPoints >= 1000 },
+        };
+        const TOTAL_LEVELS = 100, PASS_PERCENTAGE = 0.6;
+        const dom = {};
+        let state = {};
+        const POINTS_PER_CORRECT = 10, STREAK_THRESHOLD = 2, STREAK_BONUS = 5;
+        const apiKey = ""; const textApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+        // --- GEMINI API ---
+        async function generateLevelQuiz(level) {
+            dom.homeScreen.classList.add('hidden'); dom.loading.classList.remove('hidden'); dom.loadingText.textContent = `Building Level ${level}: ${levelTopics[level - 1]}...`;
+            const difficultyMap = { 10: "Very Easy", 20: "Easy", 40: "Medium", 60: "Hard", 80: "Very Hard", 100: "Expert" };
+            const difficulty = Object.entries(difficultyMap).find(([maxLvl, _]) => level <= maxLvl)[1];
+            const prompt = `Generate a 20-question multiple-choice quiz about "${levelTopics[level - 1]}". The difficulty should be '${difficulty}'. For each question, provide 4 options. The correct answer must be one of the options.`;
+            const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { quiz: { type: "ARRAY", items: { type: "OBJECT", properties: { question: { type: "STRING" }, options: { type: "ARRAY", items: { type: "STRING" } }, answer: { type: "STRING" } }, required: ["question", "options", "answer"] } } }, required: ["quiz"] } } };
+            try {
+                const response = await fetch(textApiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                if (!response.ok) throw new Error(`API error: ${response.statusText}`);
+                const result = await response.json();
+                if (result.candidates?.[0]?.content) {
+                    const generatedData = JSON.parse(result.candidates[0].content.parts[0].text);
+                    if (!generatedData.quiz || generatedData.quiz.length < 5) throw new Error("Generated quiz has too few questions.");
+                    startQuiz(generatedData.quiz, level);
+                } else { throw new Error("Invalid response structure from API."); }
+            } catch (error) { console.error("Failed to generate AI quiz:", error); showAlert("Sorry, we couldn't build the level. Please try again."); resetToHome(); }
+        }
+        async function getExplanation(q, a) {
+            dom.explainBtn.disabled = true; dom.explanationText.textContent = "✨ Thinking..."; dom.explanationContainer.classList.remove('hidden');
+            const payload = { contents: [{ role: "user", parts: [{ text: `In 1-2 concise sentences, please explain why the answer to "${q}" is "${a}".` }] }] };
+            try {
+                const response = await fetch(textApiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                const result = await response.json(); dom.explanationText.textContent = result.candidates[0].content.parts[0].text;
+            } catch (error) { console.error("Failed to get explanation:", error); dom.explanationText.textContent = "Sorry, couldn't fetch an explanation right now."; }
+        }
+        async function getHint(question) {
+            dom.hintBtn.disabled = true;
+            dom.hintBtn.innerHTML = `<i class="ph-circle-notch animate-spin"></i> Hint`;
+            const prompt = `Give me a one-sentence hint for the multiple-choice question: "${question}". The hint should not contain the answer. Make it clever but helpful.`;
+            const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
+            try {
+                const response = await fetch(textApiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                const result = await response.json();
+                const hint = result.candidates[0].content.parts[0].text;
+                showAlert(`✨ Hint: ${hint}`);
+            } catch (error) {
+                console.error("Failed to get hint:", error);
+                showAlert("Sorry, couldn't get a hint right now.");
+            } finally {
+                dom.hintBtn.innerHTML = `<i class="ph-magic-wand"></i>Hint`;
+            }
+        }
+        async function getAIFeedback(topic, correctAnswers, totalQuestions, passed) {
+            dom.scoreFeedback.innerHTML = `<div class="spinner mx-auto" style="width: 24px; height: 24px; border-left-color: #6d28d9;"></div>`;
+            const prompt = `A user just completed a quiz on the topic "${topic}". They answered ${correctAnswers} out of ${totalQuestions} questions correctly, and they ${passed ? 'passed' : 'failed'} the level. Write a short, encouraging, and slightly witty feedback message for them in 1-2 sentences.`;
+            const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
+            try {
+                 const response = await fetch(textApiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                const result = await response.json();
+                dom.scoreFeedback.textContent = result.candidates[0].content.parts[0].text;
+            } catch(e) {
+                console.error("Failed to get AI feedback", e);
+                dom.scoreFeedback.textContent = passed ? "Great job! You've passed the level." : "Good effort! Try again to pass.";
+            }
+        }
+        
+        // --- UI & STATE MANAGEMENT ---
+        function setupDOM() {
+            Object.assign(dom, {
+                loading: document.getElementById('loading'), loadingText: document.getElementById('loading-text'), homeScreen: document.getElementById('home-screen'),
+                quizInterface: document.getElementById('quiz-interface'), scoreScreen: document.getElementById('score-screen'), backBtnQuiz: document.getElementById('back-btn-quiz'),
+                homeBtnScore: document.getElementById('home-btn-score'), levelSelection: document.getElementById('level-selection'), scoreCounter: document.getElementById('score-counter'),
+                questionText: document.getElementById('question-text'), optionsContainer: document.getElementById('options-container'), nextBtn: document.getElementById('next-btn'),
+                explainBtn: document.getElementById('explain-btn'), explanationContainer: document.getElementById('explanation-container'), explanationText: document.getElementById('explanation-text'),
+                scoreFeedback: document.getElementById('score-feedback'), scoreFeedbackContainer: document.getElementById('score-feedback-container'), playAgainBtn: document.getElementById('play-again-btn'),
+                totalPointsValue: document.getElementById('total-points-value'), streakDisplay: document.getElementById('streak-display'), streakValue: document.getElementById('streak-value'),
+                baseScore: document.getElementById('base-score'), bonusPoints: document.getElementById('bonus-points'), roundTotal: document.getElementById('round-total'),
+                modalContainer: document.getElementById('modal-container'), achievementsBtn: document.getElementById('achievements-btn'), achievementsModal: document.getElementById('achievements-modal'),
+                achievementsList: document.getElementById('achievements-list'), customAlert: document.getElementById('custom-alert'), alertMessage: document.getElementById('alert-message'),
+                alertCloseBtn: document.getElementById('alert-close-btn'), newAchievementAlert: document.getElementById('new-achievement-alert'),
+                headerTitle: document.getElementById('header-title'), headerIcons: document.getElementById('header-icons'), scoreTitle: document.getElementById('score-title'),
+                hintBtn: document.getElementById('hint-btn'),
+            });
+        }
+        function loadState() {
+            state = {
+                totalPoints: parseInt(localStorage.getItem('quizMasterTotalPoints')) || 0,
+                unlockedAchievements: JSON.parse(localStorage.getItem('quizMasterAchievements')) || {},
+                highestLevelUnlocked: parseInt(localStorage.getItem('quizMasterHighestLevel')) || 1,
+                questions: [], currentLevel: 1, currentQuestionIndex: 0, score: 0, streakCounter: 0, maxStreak: 0, roundBonus: 0,
+            };
+            dom.totalPointsValue.textContent = state.totalPoints;
+        }
+        function saveState() {
+            localStorage.setItem('quizMasterTotalPoints', state.totalPoints);
+            localStorage.setItem('quizMasterAchievements', JSON.stringify(state.unlockedAchievements));
+            localStorage.setItem('quizMasterHighestLevel', state.highestLevelUnlocked);
+        }
+        function checkAchievements(passed) {
+            const stats = { ...state, passed };
+            for (const key in achievements) {
+                if (!state.unlockedAchievements[key] && achievements[key].check(stats, passed)) {
+                    state.unlockedAchievements[key] = true;
+                    setTimeout(() => showAlert(null, key), 500);
+                }
+            }
+        }
+        function renderAchievements() {
+            dom.achievementsList.innerHTML = '';
+            for (const key in achievements) {
+                const ach = achievements[key]; const isUnlocked = state.unlockedAchievements[key]; const achEl = document.createElement('div');
+                achEl.className = `text-center p-4 rounded-lg border-2 ${isUnlocked ? 'border-yellow-400 bg-yellow-50' : 'border-gray-200'} ${!isUnlocked ? 'locked' : ''}`;
+                achEl.innerHTML = `<div class="text-4xl mb-2">${ach.icon}</div><h4 class="font-bold text-gray-800">${ach.title}</h4><p class="text-xs text-gray-500">${ach.desc}</p>`;
+                dom.achievementsList.appendChild(achEl);
+            }
+        }
+        
+        // --- QUIZ FLOW ---
+        function renderLevelSelection() {
+            dom.levelSelection.innerHTML = '';
+            for (let i = 1; i <= TOTAL_LEVELS; i++) {
+                const btn = document.createElement('button');
+                const isLocked = i > state.highestLevelUnlocked;
+                btn.className = `level-btn btn flex-col h-24 text-base font-bold ${isLocked ? 'locked' : 'btn-secondary'}`;
+                btn.innerHTML = `<span>${i}</span><span class="font-normal text-xs text-center level-topic">${levelTopics[i - 1]}</span>`;
+                if (isLocked) {
+                    btn.innerHTML = `<i class="ph-lock-simple-fill text-2xl"></i><span>${i}</span>`;
+                    btn.disabled = true;
+                } else { btn.onclick = () => generateLevelQuiz(i); }
+                dom.levelSelection.appendChild(btn);
+            }
+        }
+        function startQuiz(quizQuestions, level) {
+            state = { ...state, questions: quizQuestions, currentLevel: level, currentQuestionIndex: 0, score: 0, streakCounter: 0, maxStreak: 0, roundBonus: 0 };
+            dom.loading.classList.add('hidden'); dom.homeScreen.classList.add('hidden'); dom.scoreScreen.classList.add('hidden');
+            dom.quizInterface.classList.remove('hidden'); dom.backBtnQuiz.classList.remove('hidden'); dom.headerIcons.classList.add('hidden');
+            dom.headerTitle.textContent = `Level ${level}: ${levelTopics[level - 1]}`;
+            dom.scoreCounter.textContent = `Points: ${state.score}`;
+            showQuestion();
+        }
+        function showQuestion() {
+            resetState();
+            const question = state.questions[state.currentQuestionIndex];
+            dom.questionText.textContent = question.question;
+            question.options.forEach(o => {
+                const btn = document.createElement('button');
+                btn.className = 'option w-full text-left bg-white border-2 border-gray-200';
+                btn.textContent = o; btn.onclick = () => selectAnswer(btn, o, question.answer);
+                dom.optionsContainer.appendChild(btn);
+            });
+        }
+        function selectAnswer(selectedButton, selectedOption, correctAnswer) {
+            dom.hintBtn.classList.add('hidden');
+            Array.from(dom.optionsContainer.children).forEach(b => { b.disabled = true; if (b.textContent === correctAnswer) b.classList.add('correct'); else if (b === selectedButton) b.classList.add('incorrect'); });
+            if (selectedOption === correctAnswer) {
+                state.score += POINTS_PER_CORRECT; state.streakCounter++;
+                if (state.streakCounter > state.maxStreak) state.maxStreak = state.streakCounter;
+                if (state.streakCounter >= STREAK_THRESHOLD) {
+                    const bonus = STREAK_BONUS * state.streakCounter; state.score += bonus; state.roundBonus += bonus;
+                    dom.streakValue.textContent = state.streakCounter; dom.streakDisplay.classList.remove('hidden'); dom.streakDisplay.classList.add('tada-animation');
+                    setTimeout(() => dom.streakDisplay.classList.remove('tada-animation'), 1000);
+                }
+            } else { state.streakCounter = 0; dom.streakDisplay.classList.add('hidden'); }
+            dom.scoreCounter.textContent = `Points: ${state.score}`; dom.explainBtn.classList.remove('hidden'); dom.explainBtn.onclick = () => getExplanation(state.questions[state.currentQuestionIndex].question, correctAnswer);
+            if (state.questions.length > state.currentQuestionIndex + 1) dom.nextBtn.classList.remove('hidden'); else setTimeout(showScore, 1500);
+        }
+        function showScore() {
+            dom.quizInterface.classList.add('hidden'); dom.scoreScreen.classList.remove('hidden');
+            const base = state.score - state.roundBonus;
+            const correctAnswers = base / POINTS_PER_CORRECT;
+            const passed = correctAnswers / state.questions.length >= PASS_PERCENTAGE;
+
+            dom.scoreTitle.textContent = passed ? "Level Complete!" : "Level Failed";
+            getAIFeedback(levelTopics[state.currentLevel - 1], correctAnswers, state.questions.length, passed);
+            
+            dom.playAgainBtn.innerHTML = passed ? `Next Level <i class="ph-arrow-right"></i>` : `Retry Level <i class="ph-arrow-counter-clockwise"></i>`;
+
+            if (passed) {
+                if (state.currentLevel === state.highestLevelUnlocked && state.highestLevelUnlocked < TOTAL_LEVELS) state.highestLevelUnlocked++;
+                if (state.currentLevel < TOTAL_LEVELS) {
+                    dom.playAgainBtn.onclick = () => generateLevelQuiz(state.highestLevelUnlocked);
+                    dom.playAgainBtn.classList.remove('hidden');
+                } else {
+                    dom.playAgainBtn.classList.add('hidden');
+                    dom.scoreFeedback.textContent = "Congratulations! You've completed all levels!";
+                }
+            } else {
+                dom.playAgainBtn.onclick = () => generateLevelQuiz(state.currentLevel);
+                dom.playAgainBtn.classList.remove('hidden');
+            }
+
+            dom.baseScore.textContent = `${base} pts`; dom.bonusPoints.textContent = `+ ${state.roundBonus} pts`; dom.roundTotal.textContent = `${state.score} pts`;
+            state.totalPoints += state.score;
+            checkAchievements(passed);
+            saveState();
+            dom.totalPointsValue.textContent = state.totalPoints;
+        }
+        function resetToHome() {
+            dom.loading.classList.add('hidden'); dom.quizInterface.classList.add('hidden'); dom.scoreScreen.classList.add('hidden');
+            dom.homeScreen.classList.remove('hidden'); dom.backBtnQuiz.classList.add('hidden'); dom.headerIcons.classList.remove('hidden');
+            dom.headerTitle.textContent = `QuizMaster`;
+            renderLevelSelection();
+        }
+        function resetState() {
+            dom.nextBtn.classList.add('hidden'); dom.explainBtn.classList.add('hidden');
+            dom.hintBtn.classList.remove('hidden'); dom.hintBtn.disabled = false;
+            dom.explanationContainer.classList.add('hidden'); dom.streakDisplay.classList.add('hidden'); dom.optionsContainer.innerHTML = '';
+        }
+        function showAlert(message, achievement = null) {
+            dom.newAchievementAlert.classList.toggle('hidden', !achievement);
+            if (achievement) { dom.newAchievementAlert.querySelector('div').textContent = achievements[achievement].icon; dom.alertMessage.textContent = achievements[achievement].desc; } 
+            else { dom.alertMessage.textContent = message; }
+            dom.modalContainer.classList.remove('hidden'); dom.customAlert.classList.remove('hidden');
+        }
+        function closeModal() {
+            dom.modalContainer.classList.add('hidden'); dom.customAlert.classList.add('hidden'); dom.achievementsModal.classList.add('hidden');
+        }
+
+        // --- INITIALIZATION ---
+        window.onload = () => {
+            setupDOM();
+            loadState();
+
+            // Attach Event Listeners
+            dom.alertCloseBtn.addEventListener('click', closeModal);
+            dom.modalContainer.addEventListener('click', (e) => { if (e.target === dom.modalContainer) closeModal(); });
+            dom.achievementsModal.querySelector('.modal-close-btn').addEventListener('click', closeModal);
+            dom.nextBtn.addEventListener('click', () => { state.currentQuestionIndex++; showQuestion(); });
+            dom.backBtnQuiz.addEventListener('click', resetToHome);
+            dom.homeBtnScore.addEventListener('click', resetToHome);
+            dom.achievementsBtn.addEventListener('click', () => {
+                renderAchievements();
+                dom.modalContainer.classList.remove('hidden');
+                dom.achievementsModal.classList.remove('hidden');
+            });
+            dom.hintBtn.addEventListener('click', () => {
+                getHint(state.questions[state.currentQuestionIndex].question);
+            });
+
+            resetToHome(); // Initial render
+        };
+    </script>
+</body>
+</html>
